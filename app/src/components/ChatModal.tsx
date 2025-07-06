@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send } from 'lucide-react';
-import { Update } from '../types';
+import type { Update } from '../types';
 import { continueChat } from '../geminiService';
 
 interface ChatModalProps {

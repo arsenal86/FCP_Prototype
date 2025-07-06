@@ -1,5 +1,5 @@
 import React from 'react';
-import { Update } from '../types';
+import type { Update } from '../types';
 import { Calendar, FileText, Clock } from 'lucide-react';
 
 interface ItemCardProps {
@@ -13,7 +13,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ update, onClick, isSelected, onSele
   const formattedPublicationDate = new Date(update.publicationDate).toLocaleDateString();
   const formattedCreatedAt = update.createdAt?.toDate ? update.createdAt.toDate().toLocaleDateString() : 'N/A';
 
-  const handleSelect = (e: React.MouseEvent) => {
+  const handleSelect: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     e.stopPropagation();
     onSelect(update.id);
   };

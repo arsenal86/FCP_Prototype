@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from './firebase';
-import { onAuthStateChanged, signInAnonymously, User } from 'firebase/auth';
+import type { User } from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { Search, FileDown } from 'lucide-react';
-import { Update } from './types';
+import type { Update } from './types';
 import ItemCard from './components/ItemCard';
 import AssessmentPanel from './components/AssessmentPanel';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+
+declare global {
+  interface Window {
+    jsPDF: any;
+    html2canvas: any;
+  }
+}
+
 
 const tabs = ['New & Unvalidated', 'Validated', 'Requires Further Review', 'Not Applicable'];
 
@@ -70,7 +77,7 @@ function App() {
   };
 
   const createReport = async () => {
-    const doc = new jsPDF();
+    const doc = new window.jsPDF();
     const reportItems = updates.filter(u => selectedReportItems.includes(u.id));
     
     for (let i = 0; i < reportItems.length; i++) {
@@ -92,7 +99,7 @@ function App() {
       `;
       document.body.appendChild(element);
       
-      const canvas = await html2canvas(element);
+      const canvas = await window.html2canvas(element);
       document.body.removeChild(element);
       
       const imgData = canvas.toDataURL('image/png');
