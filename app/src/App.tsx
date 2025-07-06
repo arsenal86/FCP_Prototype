@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { onAuthStateChanged, signInAnonymously, User } from 'firebase/auth';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { Search } from 'lucide-react';
+import { Update } from './types';
+import UpdateCard from './components/UpdateCard';
 
 const tabs = ['New & Unvalidated', 'Validated', 'Requires Further Review', 'Not Applicable'];
 
@@ -9,29 +12,58 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(tabs[0]);
+  const [updates, setUpdates] = useState<Update[]>([]);
+  const [filteredUpdates, setFilteredUpdates] = useState<Update[]>([]);
+  const [eventTypeFilter, setEventTypeFilter] = useState('');
+  const [impactedAreaFilter, setImpactedAreaFilter] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        setLoading(false);
       } else {
         signInAnonymously(auth).catch((error) => {
           console.error("Anonymous sign-in failed:", error);
+          setLoading(false);
         });
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      const q = query(collection(db, `updates`));
+      const unsubscribeFirestore = onSnapshot(q, (querySnapshot) => {
+        const updatesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Update));
+        setUpdates(updatesData);
+      });
+      return () => unsubscribeFirestore();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    let filtered = updates.filter(update => update.status === activeTab);
+
+    if (eventTypeFilter) {
+      filtered = filtered.filter(update => update.type === eventTypeFilter);
+    }
+
+    if (impactedAreaFilter) {
+      filtered = filtered.filter(update => update.impactedAreas.includes(impactedAreaFilter));
+    }
+
+    setFilteredUpdates(filtered);
+  }, [updates, activeTab, eventTypeFilter, impactedAreaFilter]);
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen" role="status" aria-live="polite">
-        <div>Loading...</div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen"><div>Loading...</div></div>;
   }
+
+  const eventTypes = [...new Set(updates.map(update => update.type))];
+  const impactedAreas = [...new Set(updates.flatMap(update => update.impactedAreas))];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -44,7 +76,6 @@ function App() {
               type="text"
               placeholder="Global search..."
               className="pl-10 pr-4 py-2 border rounded-md w-64"
-              aria-label="Search"
             />
           </div>
         </div>
@@ -68,8 +99,29 @@ function App() {
           </nav>
         </div>
         <div className="mt-6">
-          {/* Content for each tab will go here */}
-          <p>Content for {activeTab}</p>
+          <div className="flex space-x-4 mb-4">
+            <select
+              value={eventTypeFilter}
+              onChange={(e) => setEventTypeFilter(e.target.value)}
+              className="border rounded-md px-3 py-2"
+            >
+              <option value="">All Event Types</option>
+              {eventTypes.map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+            <select
+              value={impactedAreaFilter}
+              onChange={(e) => setImpactedAreaFilter(e.target.value)}
+              className="border rounded-md px-3 py-2"
+            >
+              <option value="">All Impacted Areas</option>
+              {impactedAreas.map(area => <option key={area} value={area}>{area}</option>)}
+            </select>
+          </div>
+          <div>
+            {filteredUpdates.map(update => (
+              <UpdateCard key={update.id} update={update} />
+            ))}
+          </div>
         </div>
       </main>
     </div>
