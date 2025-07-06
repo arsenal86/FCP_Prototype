@@ -1,0 +1,113 @@
+Technical Requirements Document: Horizon Scanning & Assessment Platform (Firebase Stack)
+Version: 1.1
+
+Date: July 6, 2025
+
+Author: Marc Debenham
+
+1. System Architecture
+The application is a Single Page Application (SPA) built using a modern, component-based architecture. It leverages a Backend-as-a-Service (BaaS) model for its core infrastructure, minimizing the need for custom server-side management in this phase.
+
+Frontend Framework: React 18
+
+Rationale: A robust, widely-supported library with a strong ecosystem. Functional components with Hooks (useState, useEffect, useRef) will be used for state and lifecycle management.
+
+Backend Services: Google Firebase
+
+Rationale: Provides a highly scalable, real-time, and secure backend infrastructure with integrated authentication, which is ideal for rapid development and collaborative applications.
+
+Database: Cloud Firestore
+
+Rationale: A NoSQL, document-based database that offers real-time data synchronization, flexible data modeling, and powerful querying capabilities suitable for the application's needs.
+
+Authentication: Firebase Authentication
+
+Rationale: Provides a secure and easy-to-implement authentication system. The prototype supports anonymous sign-in and is configured for custom tokens, allowing for seamless integration into a secure environment.
+
+AI/LLM Integration: Google Gemini API
+
+Rationale: Offers powerful generative and chat capabilities. The gemini-2.0-flash model is used for its balance of speed and performance.
+
+Styling & UI:
+
+Styling: Tailwind CSS for rapid, utility-first development.
+
+Icons: Lucide-React for lightweight and consistent icons.
+
+PDF Generation:
+
+Libraries: jsPDF and html2canvas are loaded via CDN to handle client-side PDF creation from HTML content.
+
+2. Data Model (Firestore)
+2.1. updates Collection
+This collection stores each regulatory item, whether ingested automatically or added manually.
+
+Path: /artifacts/{appId}/public/data/updates/{updateId}
+
+Schema:
+
+{
+  "title": "string",
+  "url": "string",
+  "source": "string",
+  "summary": "string",
+  "detailedSummary": "string",
+  "impactAssessment": "string",
+  "publicationDate": "string (YYYY-MM-DD)",
+  "deadline": "string (YYYY-MM-DD, optional)",
+  "type": "string",
+  "status": "string",
+  "impactedAreas": ["string"],
+  "timescales": "string",
+  "notes": "string",
+  "assessedBy": "string", // Firebase User UID
+  "createdAt": "timestamp"
+}
+
+2.2. horizon_events Collection
+This collection stores items that have been explicitly added to the Gantt chart.
+
+Path: /artifacts/{appId}/public/data/horizon_events/{eventId}
+
+Schema:
+
+{
+  "updateId": "string", // Foreign key to the `updates` collection
+  "title": "string",
+  "start": "string (YYYY-MM-DD)",
+  "end": "string (YYYY-MM-DD)",
+  "type": "string"
+}
+
+3. API & Service Integrations
+3.1. Firestore API
+Data Fetching: Real-time listeners (onSnapshot) are attached to the updates and horizon_events collections to ensure the UI is always in sync with the database.
+
+Data Filtering & Search: In the current prototype, all filtering (by status tab, event type, business area) and searching is performed client-side after fetching the full dataset.
+
+Data Writing:
+
+addDoc: Used for creating new manual entries and new horizon events.
+
+setDoc with { merge: true }: Used for saving and updating assessments to prevent overwriting fields.
+
+3.2. Google Gemini API
+Endpoint: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+
+Authentication: API key is passed in the request URL. For this prototype, the key is handled by the environment.
+
+Requests: All requests are POST with a Content-Type: application/json header. The body contains a contents object with the chat history and prompt.
+
+4. Security & Deployment
+Security Rules: Firestore rules must be configured to allow public read/write access only to the specified collection paths (/artifacts/{appId}/public/data/*) for authenticated users.
+
+Deployment: The application is a static React build. It can be deployed to any modern static hosting provider (e.g., Firebase Hosting, Vercel, Netlify).
+
+5. Scalability Considerations
+Database: Firestore is highly scalable.
+
+Search & Filtering: The current client-side implementation for search and filtering will become a performance bottleneck as the number of documents exceeds a few hundred. For production, this must be migrated to a dedicated search service.
+
+Recommended Solution: Integrate Algolia or Elasticsearch. An index would be created containing the searchable fields from the updates collection.
+
+Implementation: A Cloud Function would be triggered onWrite to the updates collection to keep the search index synchronized with Firestore. The frontend would then query the search service directly for all search and filtering operations, returning only the necessary document IDs to fetch from Firestore. This dramatically improves performance and reduces client-side load.
